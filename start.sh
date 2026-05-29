@@ -40,10 +40,13 @@ s3_region = "garage"
 api_bind_addr = "[::]:${PORT}"
 EOF
 
-# 4. Inicia o Garage em background
+# 4. Inicia o Garage em background, espelhando logs para stdout (Railway)
 echo "Iniciando o Garage localmente na porta $PORT..."
-garage -c /etc/garage.toml server > /tmp/garage.log 2>&1 &
+: > /tmp/garage.log
+garage -c /etc/garage.toml server >> /tmp/garage.log 2>&1 &
 GARAGE_PID=$!
+# Espelha o log do Garage para o stdout do container
+tail -F /tmp/garage.log &
 
 sleep 5
 
@@ -70,8 +73,8 @@ if [ ! -f "/data/.initialized" ]; then
     # Importa chaves e dá permissão
     if [ -n "$GARAGE_ACCESS_KEY" ] && [ -n "$GARAGE_SECRET_KEY" ]; then
         echo "🔑 Configurando chaves personalizadas..."
-        garage -c /etc/garage.toml key import $GARAGE_ACCESS_KEY $GARAGE_SECRET_KEY || echo "⚠️ Chave já importada."
-        garage -c /etc/garage.toml bucket allow $GARAGE_BUCKET --read --write --key $GARAGE_ACCESS_KEY || echo "⚠️ Permissão já concedida."
+        garage -c /etc/garage.toml key import --yes -n "$GARAGE_KEY_NAME" "$GARAGE_ACCESS_KEY" "$GARAGE_SECRET_KEY" || echo "⚠️ Chave já importada."
+        garage -c /etc/garage.toml bucket allow $GARAGE_BUCKET --read --write --key "$GARAGE_ACCESS_KEY" || echo "⚠️ Permissão já concedida."
     else
         echo "🔑 Configurando chaves aleatórias..."
         garage -c /etc/garage.toml key create $GARAGE_KEY_NAME || echo "⚠️ Chave já existe."
